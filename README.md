@@ -1,11 +1,11 @@
 # RoadCare TKD – Autós költségkövető alkalmazás
 
-## Hallgatói adatok
+##Hallgatói adatok
 
-- Hallgató neve: **Tóth Kevin Dorián**
-- Neptun-kód: **MAX-EBH**
-- Tárgy: **Skript nyelvek – Python projektfeladat**
-- Projekt neve: **RoadCare TKD – Autó szerviz és költségkövető**
+- Hallgató neve: Tóth Kevin Dorián
+- Neptun-kód: MAXEBH
+- Tárgy: Skript nyelvek – DUEL-ISR-116
+- Projekt neve: RoadCare TKD – Autó szerviz és költségkövető
 
 ---
 
