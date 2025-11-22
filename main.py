@@ -1,6 +1,14 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
-from auto_TKD import Auto_TKD
+import statistics
+from auto_TKD import Auto_TKD, GUMI_INTERVAL_KM
+
+def fogyasztas_statisztika_TKD(auto):
+    if not auto.tankolasok_TKD:
+        return None
+    atlag_liter = statistics.mean(t["liter"] for t in auto.tankolasok_TKD)
+    atlag_koltseg = statistics.mean(t["koltseg"] for t in auto.tankolasok_TKD)
+    return atlag_liter, atlag_koltseg
 
 class App_TKD:
     def __init__(self, root):
@@ -14,9 +22,10 @@ class App_TKD:
             self.icon_image = tk.PhotoImage(file="wheel.png")
             self.root.iconphoto(False, self.icon_image)
         except Exception:
-            pass
+            self.icon_image = None
 
         self.auto = None
+
         self.setup_frame = tk.Frame(self.root, bg="#ccddee", padx=15, pady=15)
         self.setup_frame.pack(fill=tk.BOTH, expand=True)
         self.build_setup_ui()
@@ -48,7 +57,7 @@ class App_TKD:
             vetel_km = int(self.vetel_km_var.get())
             akt_km = int(self.km_var.get())
         except ValueError:
-            messagebox.showerror("Hiba", "A km mezőkbe számot írj!")
+            messagebox.showerror("Hiba", "A km mezőkbe számot írj.")
             return
 
         self.auto = Auto_TKD(
@@ -79,8 +88,9 @@ class App_TKD:
         ttk.Button(g, text="Km frissítése", command=self.km_frissites_TKD).grid(row=0, column=0, padx=8, pady=8)
         ttk.Button(g, text="Szerviz rögzítése", command=self.uj_szerviz_TKD).grid(row=0, column=1, padx=8, pady=8)
         ttk.Button(g, text="Tankolás rögzítése", command=self.uj_tankolas_TKD).grid(row=0, column=2, padx=8, pady=8)
-        ttk.Button(g, text="Mentés fájlba", command=self.mentes_fajlba_TKD).grid(row=0, column=3, padx=8, pady=8)
-        ttk.Button(g, text="Kilépés", command=self.root.destroy).grid(row=0, column=4, padx=8, pady=8)
+        ttk.Button(g, text="Gumi használat", command=self.gumi_hasznalat_TKD).grid(row=0, column=3, padx=8, pady=8)
+        ttk.Button(g, text="Mentés fájlba", command=self.mentes_fajlba_TKD).grid(row=0, column=4, padx=8, pady=8)
+        ttk.Button(g, text="Kilépés", command=self.root.destroy).grid(row=0, column=5, padx=8, pady=8)
 
         self.frissit_kijelzes_TKD()
 
@@ -104,23 +114,48 @@ class App_TKD:
             sorok.append(f"Üzemanyagköltség összesen: {uzemanyag:.0f} Ft (átlagfogyasztás: nincs elég adat)")
         else:
             sorok.append(f"Üzemanyagköltség összesen: {uzemanyag:.0f} Ft (átlag: {atlag:.2f} l/100 km)")
+
+        stat = fogyasztas_statisztika_TKD(a)
+        if stat is None:
+            sorok.append("Tankolások statisztikája: nincs elegendő adat.")
+        else:
+            atlag_l, atlag_k = stat
+            sorok.append(f"Átlagosan {atlag_l:.2f} litert tankolsz tankolásonként.")
+            sorok.append(f"Átlagosan {atlag_k:.0f} Ft-ot fizetsz tankolásonként.")
         sorok.append("")
 
-        def add_line(cim, key, extra=""):
-            km = a.km_hatravan_TKD(key)
-            if km is not None:
-                if extra:
-                    sorok.append(f"{cim}: {km} km múlva {extra}")
-                else:
-                    sorok.append(f"{cim}: {km} km múlva")
-            else:
+        def add_line(cim, key):
+            diff = a.km_hatravan_TKD(key)
+            if diff is None:
                 sorok.append(f"{cim}: még nincs adat")
+            elif diff < 0:
+                sorok.append(f"{cim}: Kérjük, ellenőrizze, csere ajánlott! ({abs(diff)} km-rel túllépve)")
+            else:
+                sorok.append(f"{cim}: {diff} km múlva esedékes")
 
         add_line("Olajcsere", "olaj")
         add_line("Vezérlés csere", "vezerles")
         add_line("Fékek cseréje", "fekek")
-        add_line("Téli gumi csere", "gumi_teli", "(8 éves korban ajánlott nagycserére.)")
-        add_line("Nyári gumi csere", "gumi_nyari", "(8 éves korban ajánlott nagycserére.)")
+
+        sorok.append("")
+        sorok.append("Gumik használata:")
+
+        for evszak, cim in [("teli", "Téli gumi"), ("nyari", "Nyári gumi")]:
+            felhasznalt = a.gumi_hasznalat_TKD(evszak)
+            if felhasznalt <= 0:
+                sorok.append(f"{cim}: nincs adat.")
+            else:
+                diff = a.gumi_elettartam_TKD(evszak)
+                if diff >= 0:
+                    sorok.append(
+                        f"{cim}: összesen {felhasznalt} km, becsült hátralévő: {diff} km "
+                        f"(kb. {GUMI_INTERVAL_KM} km-ig, 8 éves korban ajánlott nagycserére.)"
+                    )
+                else:
+                    sorok.append(
+                        f"{cim}: összesen {felhasznalt} km – Kérjük, ellenőrizze, csere ajánlott! "
+                        f"({abs(diff)} km-rel túllépve, kb. {GUMI_INTERVAL_KM} km felett, 8 éves korban ajánlott nagycserére.)"
+                    )
 
         sorok.append("")
         sorok.append("Költségek típusonként:")
@@ -128,8 +163,8 @@ class App_TKD:
             "olaj": "Olajcsere",
             "vezerles": "Vezérlés",
             "fekek": "Fékek",
-            "gumi_teli": "Téli gumi",
-            "gumi_nyari": "Nyári gumi"
+            "gumi": "Gumi",
+            "egyeb": "Egyéb"
         }
         for kod, nev in nevek.items():
             sorok.append(f"{nev}: {a.koltseg_tipus_szerint_TKD(kod):.0f} Ft")
@@ -151,7 +186,7 @@ class App_TKD:
     def uj_szerviz_TKD(self):
         ablak = tk.Toplevel(self.root)
         ablak.title("Szerviz rögzítése")
-        ablak.geometry("500x320")
+        ablak.geometry("500x360")
         ablak.configure(bg="#dde7ff")
 
         tk.Label(ablak, text="Szerviz km-állás:", bg="#dde7ff").grid(row=0, column=0, sticky="e", pady=5, padx=5)
@@ -162,8 +197,8 @@ class App_TKD:
             ("Olajcsere", "olaj"),
             ("Vezérlés", "vezerles"),
             ("Fékek", "fekek"),
-            ("Téli gumi", "gumi_teli"),
-            ("Nyári gumi", "gumi_nyari")
+            ("Gumi", "gumi"),
+            ("Egyéb", "egyeb")
         ]
 
         valasztok = []
@@ -192,7 +227,7 @@ class App_TKD:
                     try:
                         koltseg = float(koltseg_var.get())
                     except ValueError:
-                        messagebox.showerror("Hiba", "A költség mezőben számot adj meg.")
+                        messagebox.showerror("Hiba", "A költség mezőkben számot adj meg.")
                         return
                     self.auto.add_service_TKD(kod, km, koltseg)
                     legalabb_egy = True
@@ -258,6 +293,42 @@ class App_TKD:
         g.grid(row=4, column=0, columnspan=2, pady=10)
         ttk.Button(g, text="Mentés", command=ment).grid(row=0, column=0, padx=10)
         ttk.Button(g, text="Mégse", command=ablak.destroy).grid(row=0, column=1, padx=10)
+
+    def gumi_hasznalat_TKD(self):
+        ablak = tk.Toplevel(self.root)
+        ablak.title("Gumi használat rögzítése")
+        ablak.geometry("420x220")
+        ablak.configure(bg="#dde7ff")
+
+        tk.Label(ablak, text="Válassz évszakot:", bg="#dde7ff").grid(row=0, column=0, sticky="e", pady=5, padx=5)
+        evszak_var = tk.StringVar(value="teli")
+
+        rb1 = tk.Radiobutton(ablak, text="Téli gumi", variable=evszak_var, value="teli", bg="#dde7ff")
+        rb2 = tk.Radiobutton(ablak, text="Nyári gumi", variable=evszak_var, value="nyari", bg="#dde7ff")
+        rb1.grid(row=0, column=1, sticky="w", pady=5, padx=5)
+        rb2.grid(row=1, column=1, sticky="w", pady=5, padx=5)
+
+        tk.Label(ablak, text="Ebben az évszakban megtett km:", bg="#dde7ff")\
+            .grid(row=2, column=0, sticky="e", pady=5, padx=5)
+        km_var = tk.StringVar(value="0")
+        tk.Entry(ablak, textvariable=km_var).grid(row=2, column=1, sticky="we", pady=5, padx=5)
+
+        ablak.columnconfigure(1, weight=1)
+
+        def ment():
+            try:
+                km = int(km_var.get())
+            except ValueError:
+                messagebox.showerror("Hiba", "A km mezőben számot adj meg.")
+                return
+            self.auto.add_gumi_hasznalat_TKD(evszak_var.get(), km)
+            self.frissit_kijelzes_TKD()
+            ablak.destroy()
+
+        gomb = tk.Frame(ablak, bg="#dde7ff")
+        gomb.grid(row=3, column=0, columnspan=2, pady=10)
+        ttk.Button(gomb, text="Mentés", command=ment).grid(row=0, column=0, padx=10)
+        ttk.Button(gomb, text="Mégse", command=ablak.destroy).grid(row=0, column=1, padx=10)
 
     def mentes_fajlba_TKD(self):
         szoveg = self.display.get("1.0", tk.END)

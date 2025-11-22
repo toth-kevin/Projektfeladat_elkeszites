@@ -17,10 +17,10 @@ class Auto_TKD:
         self.utolso_olaj_km = None
         self.utolso_vezerles_km = None
         self.utolso_fek_km = None
-        self.utolso_gumi_teli_km = None
-        self.utolso_gumi_nyari_km = None
         self.szervizek_TKD = []
-        self.tankolasok_TKD = []   # itt a "km" mező az adott tankolás óta megtett km-t jelenti
+        self.tankolasok_TKD = []
+        self.gumi_teli_hasznalat_km = 0
+        self.gumi_nyari_hasznalat_km = 0
 
     def update_km_TKD(self, uj_km):
         uj_km = int(uj_km)
@@ -39,10 +39,6 @@ class Auto_TKD:
             self.utolso_vezerles_km = km
         elif tipus == "fekek":
             self.utolso_fek_km = km
-        elif tipus == "gumi_teli":
-            self.utolso_gumi_teli_km = km
-        elif tipus == "gumi_nyari":
-            self.utolso_gumi_nyari_km = km
 
     def add_fuel_TKD(self, megtett_km, liter, koltseg):
         megtett_km = int(megtett_km)
@@ -51,6 +47,24 @@ class Auto_TKD:
         datum = datetime.now().date().isoformat()
         bejegyzes = {"km": megtett_km, "liter": liter, "datum": datum, "koltseg": koltseg}
         self.tankolasok_TKD.append(bejegyzes)
+
+    def add_gumi_hasznalat_TKD(self, evszak, km):
+        km = int(km)
+        if evszak == "teli":
+            self.gumi_teli_hasznalat_km += km
+        elif evszak == "nyari":
+            self.gumi_nyari_hasznalat_km += km
+
+    def gumi_hasznalat_TKD(self, evszak):
+        if evszak == "teli":
+            return self.gumi_teli_hasznalat_km
+        if evszak == "nyari":
+            return self.gumi_nyari_hasznalat_km
+        return 0
+
+    def gumi_elettartam_TKD(self, evszak):
+        felhasznalt = self.gumi_hasznalat_TKD(evszak)
+        return GUMI_INTERVAL_KM - felhasznalt
 
     def ossz_km_TKD(self):
         return max(0, self.aktualis_km - self.vetel_km)
@@ -74,18 +88,12 @@ class Auto_TKD:
         elif tipus == "fekek":
             interval = FEKEK_INTERVAL_KM
             last = self.utolso_fek_km
-        elif tipus == "gumi_teli":
-            interval = GUMI_INTERVAL_KM
-            last = self.utolso_gumi_teli_km
-        elif tipus == "gumi_nyari":
-            interval = GUMI_INTERVAL_KM
-            last = self.utolso_gumi_nyari_km
         else:
             return None
         if last is None:
             return None
         esedekes = last + interval
-        return max(0, esedekes - self.aktualis_km)
+        return esedekes - self.aktualis_km
 
     def szerviz_koltseg_TKD(self):
         return sum(s["koltseg"] for s in self.szervizek_TKD)

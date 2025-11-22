@@ -1,0 +1,14 @@
+{
+  "rendszam": "AIAE995",
+  "marka": "Audi",
+  "tipus": "A4",
+  "motor": "1.9TDI",
+  "indulo_km": 289250,
+  "aktualis_km": 311250,
+  "utolso_olaj_km": null,
+  "utolso_vezerles_km": null,
+  "utolso_fek_km": null,
+  "utolso_gumi_datum": null,
+  "szervizek_TKD": [],
+  "tankolasok_TKD": []
+}
