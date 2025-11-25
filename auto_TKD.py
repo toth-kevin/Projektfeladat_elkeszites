@@ -103,3 +103,4 @@ class Auto_TKD:
 
     def koltseg_tipus_szerint_TKD(self, tipus):
         return sum(s["koltseg"] for s in self.szervizek_TKD if s["tipus"] == tipus)
+
