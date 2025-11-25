@@ -1,14 +1,24 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
+from tkinter import ttk, messagebox, simpledialog, filedialog
+import json
 import statistics
 from auto_TKD import Auto_TKD, GUMI_INTERVAL_KM
 
 def fogyasztas_statisztika_TKD(auto):
     if not auto.tankolasok_TKD:
         return None
-    atlag_liter = statistics.mean(t["liter"] for t in auto.tankolasok_TKD)
-    atlag_koltseg = statistics.mean(t["koltseg"] for t in auto.tankolasok_TKD)
-    return atlag_liter, atlag_koltseg
+    liter_lista = [t["liter"] for t in auto.tankolasok_TKD]
+    koltseg_lista = [t["koltseg"] for t in auto.tankolasok_TKD]
+    atlag_liter = statistics.mean(liter_lista)
+    atlag_koltseg = statistics.mean(koltseg_lista)
+    median_liter = statistics.median(liter_lista)
+    szoras_liter = statistics.pstdev(liter_lista) if len(liter_lista) > 1 else 0.0
+    return {
+        "atlag_liter": atlag_liter,
+        "atlag_koltseg": atlag_koltseg,
+        "median_liter": median_liter,
+        "szoras_liter": szoras_liter
+    }
 
 class App_TKD:
     def __init__(self, root):
@@ -19,10 +29,14 @@ class App_TKD:
 
         self.icon_image = None
         try:
-            self.icon_image = tk.PhotoImage(file="wheel.png")
+            self.icon_image = tk.PhotoImage(file="assets/wheel.png")
             self.root.iconphoto(False, self.icon_image)
         except Exception:
-            self.icon_image = None
+            try:
+                self.icon_image = tk.PhotoImage(file="wheel.png")
+                self.root.iconphoto(False, self.icon_image)
+            except Exception:
+                self.icon_image = None
 
         self.auto = None
 
@@ -38,36 +52,33 @@ class App_TKD:
         vars_ = []
 
         for i, text in enumerate(labels, start=1):
-            tk.Label(self.setup_frame, text=text, bg="#ccddee").grid(row=i, column=0, sticky="e", pady=4)
+            tk.Label(self.setup_frame, text=text, bg="#ccddee").grid(row=i, column=0, sticky="e", pady=4, padx=4)
             var = tk.StringVar()
             vars_.append(var)
-            tk.Entry(self.setup_frame, textvariable=var).grid(row=i, column=1, sticky="we", pady=4)
+            tk.Entry(self.setup_frame, textvariable=var).grid(row=i, column=1, sticky="we", pady=4, padx=4)
 
         self.marka_var, self.tipus_var, self.evjarat_var, self.rendszam_var, self.vetel_km_var, self.km_var = vars_
-        self.vetel_km_var.set("0")
-        self.km_var.set("0")
+        self.setup_frame.columnconfigure(1, weight=1)
 
         ttk.Button(self.setup_frame, text="Tovább", command=self.create_auto_TKD)\
             .grid(row=7, column=0, columnspan=2, pady=20)
 
-        self.setup_frame.columnconfigure(1, weight=1)
-
     def create_auto_TKD(self):
+        marka = self.marka_var.get().strip()
+        tipus = self.tipus_var.get().strip()
+        evjarat = self.evjarat_var.get().strip()
+        rendszam = self.rendszam_var.get().strip()
+        if not marka or not tipus or not evjarat or not rendszam:
+            messagebox.showerror("Hiba", "Kérlek töltsd ki az összes adatmezőt (Márka, Típus, Évjárat, Rendszám).")
+            return
         try:
             vetel_km = int(self.vetel_km_var.get())
             akt_km = int(self.km_var.get())
         except ValueError:
-            messagebox.showerror("Hiba", "A km mezőkbe számot írj.")
+            messagebox.showerror("Hiba", "A km mezőkbe egész számot írj.")
             return
 
-        self.auto = Auto_TKD(
-            self.marka_var.get(),
-            self.tipus_var.get(),
-            self.evjarat_var.get(),
-            self.rendszam_var.get(),
-            vetel_km,
-            akt_km
-        )
+        self.auto = Auto_TKD(marka, tipus, evjarat, rendszam, vetel_km, akt_km)
 
         self.setup_frame.destroy()
         self.build_main_ui()
@@ -79,6 +90,16 @@ class App_TKD:
         self.fejlec = tk.Label(self.main_frame, font=("Arial", 14, "bold"), bg="#ccddee")
         self.fejlec.pack()
 
+        utmutato_szoveg = (
+            "Útmutató:\n"
+            "- A gombokkal frissítheted a km-órát, rögzítheted a szervizeket és tankolásokat.\n"
+            "- A \"Gumi használat\" gombbal megadhatod, mennyit mentél téli/nyári gumival.\n"
+            "- A \"Mentés\" gombbal elmentheted az állapotot saját fájlnévvel.\n"
+            "- A \"Betöltés\" gombbal korábban mentett adatokat tölthetsz vissza."
+        )
+        tk.Label(self.main_frame, text=utmutato_szoveg, justify="left",
+                 bg="#ccddee", font=("Arial", 9)).pack(pady=5, anchor="w")
+
         self.display = tk.Text(self.main_frame, bg="#eef5ff", width=85, height=20)
         self.display.pack(fill=tk.BOTH, expand=True, pady=10)
 
@@ -89,8 +110,9 @@ class App_TKD:
         ttk.Button(g, text="Szerviz rögzítése", command=self.uj_szerviz_TKD).grid(row=0, column=1, padx=8, pady=8)
         ttk.Button(g, text="Tankolás rögzítése", command=self.uj_tankolas_TKD).grid(row=0, column=2, padx=8, pady=8)
         ttk.Button(g, text="Gumi használat", command=self.gumi_hasznalat_TKD).grid(row=0, column=3, padx=8, pady=8)
-        ttk.Button(g, text="Mentés fájlba", command=self.mentes_fajlba_TKD).grid(row=0, column=4, padx=8, pady=8)
-        ttk.Button(g, text="Kilépés", command=self.root.destroy).grid(row=0, column=5, padx=8, pady=8)
+        ttk.Button(g, text="Mentés", command=self.mentes_fajlba_TKD).grid(row=0, column=4, padx=8, pady=8)
+        ttk.Button(g, text="Betöltés", command=self.betoltes_fajlbol_TKD).grid(row=0, column=5, padx=8, pady=8)
+        ttk.Button(g, text="Kilépés", command=self.root.destroy).grid(row=0, column=6, padx=8, pady=8)
 
         self.frissit_kijelzes_TKD()
 
@@ -100,6 +122,7 @@ class App_TKD:
         self.display.delete("1.0", tk.END)
 
         sorok = []
+        sorok.append("Autó adatai")
         sorok.append(f"Aktuális km: {a.aktualis_km}")
         sorok.append(f"Vételkor km: {a.vetel_km}")
         sorok.append(f"Megtett km: {a.ossz_km_TKD()} km")
@@ -109,20 +132,24 @@ class App_TKD:
         uzemanyag = a.uzemanyag_koltseg_TKD()
         atlag = a.atlag_fogyasztas_TKD()
 
+        sorok.append("Költségek összesen")
         sorok.append(f"Szervizköltség összesen: {szerviz:.0f} Ft")
         if atlag is None:
             sorok.append(f"Üzemanyagköltség összesen: {uzemanyag:.0f} Ft (átlagfogyasztás: nincs elég adat)")
         else:
             sorok.append(f"Üzemanyagköltség összesen: {uzemanyag:.0f} Ft (átlag: {atlag:.2f} l/100 km)")
+        sorok.append("")
 
+        sorok.append("Tankolási statisztika")
         stat = fogyasztas_statisztika_TKD(a)
         if stat is None:
-            sorok.append("Tankolások statisztikája: nincs elegendő adat.")
+            sorok.append("Tankolások: nincs elegendő adat.")
         else:
-            atlag_l, atlag_k = stat
-            sorok.append(f"Átlagosan {atlag_l:.2f} litert tankolsz tankolásonként.")
-            sorok.append(f"Átlagosan {atlag_k:.0f} Ft-ot fizetsz tankolásonként.")
+            sorok.append(f"Átlagosan {stat['atlag_liter']:.2f} litert tankolsz tankolásonként.")
+            sorok.append(f"Átlagosan {stat['atlag_koltseg']:.0f} Ft-ot fizetsz tankolásonként.")
         sorok.append("")
+
+        sorok.append("Szervizek esedékessége")
 
         def add_line(cim, key):
             diff = a.km_hatravan_TKD(key)
@@ -138,7 +165,7 @@ class App_TKD:
         add_line("Fékek cseréje", "fekek")
 
         sorok.append("")
-        sorok.append("Gumik használata:")
+        sorok.append("Gumik használata")
 
         for evszak, cim in [("teli", "Téli gumi"), ("nyari", "Nyári gumi")]:
             felhasznalt = a.gumi_hasznalat_TKD(evszak)
@@ -158,7 +185,7 @@ class App_TKD:
                     )
 
         sorok.append("")
-        sorok.append("Költségek típusonként:")
+        sorok.append("Költségek típusonként")
         nevek = {
             "olaj": "Olajcsere",
             "vezerles": "Vezérlés",
@@ -279,8 +306,10 @@ class App_TKD:
                 megtett = int(km_var.get())
                 liter = float(liter_var.get())
                 koltseg = float(koltseg_var.get())
+                if megtett < 0 or liter <= 0 or koltseg < 0:
+                    raise ValueError
             except ValueError:
-                messagebox.showerror("Hiba", "Minden mezőbe számot írj.")
+                messagebox.showerror("Hiba", "Minden mezőbe pozitív számot írj.")
                 return
 
             uj_km = self.auto.aktualis_km + megtett
@@ -318,8 +347,10 @@ class App_TKD:
         def ment():
             try:
                 km = int(km_var.get())
+                if km < 0:
+                    raise ValueError
             except ValueError:
-                messagebox.showerror("Hiba", "A km mezőben számot adj meg.")
+                messagebox.showerror("Hiba", "A km mezőben pozitív egész számot adj meg.")
                 return
             self.auto.add_gumi_hasznalat_TKD(evszak_var.get(), km)
             self.frissit_kijelzes_TKD()
@@ -331,13 +362,73 @@ class App_TKD:
         ttk.Button(gomb, text="Mégse", command=ablak.destroy).grid(row=0, column=1, padx=10)
 
     def mentes_fajlba_TKD(self):
-        szoveg = self.display.get("1.0", tk.END)
+        if self.auto is None:
+            return
+        filename = filedialog.asksaveasfilename(
+            title="Mentés",
+            defaultextension=".json",
+            filetypes=[("JSON fájl", "*.json"), ("Minden fájl", "*.*")]
+        )
+        if not filename:
+            return
+        a = self.auto
+        adat = {
+            "marka": a.marka,
+            "tipus": a.tipus,
+            "evjarat": a.evjarat,
+            "rendszam": a.rendszam,
+            "vetel_km": a.vetel_km,
+            "aktualis_km": a.aktualis_km,
+            "utolso_olaj_km": a.utolso_olaj_km,
+            "utolso_vezerles_km": a.utolso_vezerles_km,
+            "utolso_fek_km": a.utolso_fek_km,
+            "szervizek_TKD": a.szervizek_TKD,
+            "tankolasok_TKD": a.tankolasok_TKD,
+            "gumi_teli_hasznalat_km": a.gumi_teli_hasznalat_km,
+            "gumi_nyari_hasznalat_km": a.gumi_nyari_hasznalat_km
+        }
         try:
-            with open("roadcare_TKD_jelentes.txt", "w", encoding="utf-8") as f:
-                f.write(szoveg)
-            messagebox.showinfo("Mentés", "Adatok elmentve: roadcare_TKD_jelentes.txt")
+            with open(filename, "w", encoding="utf-8") as f:
+                json.dump(adat, f, ensure_ascii=False, indent=2)
+            messagebox.showinfo("Mentés", "Adatok sikeresen elmentve.")
         except Exception as e:
             messagebox.showerror("Hiba", f"Nem sikerült menteni: {e}")
+
+    def betoltes_fajlbol_TKD(self):
+        filename = filedialog.askopenfilename(
+            title="Betöltés",
+            filetypes=[("JSON fájl", "*.json"), ("Minden fájl", "*.*")]
+        )
+        if not filename:
+            return
+        try:
+            with open(filename, "r", encoding="utf-8") as f:
+                adat = json.load(f)
+        except Exception as e:
+            messagebox.showerror("Hiba", f"Nem sikerült betölteni: {e}")
+            return
+
+        try:
+            marka = adat.get("marka", "")
+            tipus = adat.get("tipus", "")
+            evjarat = adat.get("evjarat", "")
+            rendszam = adat.get("rendszam", "")
+            vetel_km = adat.get("vetel_km", 0)
+            aktualis_km = adat.get("aktualis_km", vetel_km)
+            auto = Auto_TKD(marka, tipus, evjarat, rendszam, vetel_km, aktualis_km)
+            auto.utolso_olaj_km = adat.get("utolso_olaj_km")
+            auto.utolso_vezerles_km = adat.get("utolso_vezerles_km")
+            auto.utolso_fek_km = adat.get("utolso_fek_km")
+            auto.szervizek_TKD = adat.get("szervizek_TKD", [])
+            auto.tankolasok_TKD = adat.get("tankolasok_TKD", [])
+            auto.gumi_teli_hasznalat_km = adat.get("gumi_teli_hasznalat_km", 0)
+            auto.gumi_nyari_hasznalat_km = adat.get("gumi_nyari_hasznalat_km", 0)
+        except Exception:
+            messagebox.showerror("Hiba", "A betöltött fájl formátuma érvénytelen.")
+            return
+
+        self.auto = auto
+        self.frissit_kijelzes_TKD()
 
 if __name__ == "__main__":
     root = tk.Tk()
