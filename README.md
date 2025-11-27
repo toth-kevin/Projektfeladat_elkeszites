@@ -193,4 +193,59 @@ Nem a futóműhöz, hanem a szezonhoz kötött használat.
 ---
 
 # 💾 Mentés formátuma (JSON)
+{
+"marka": "Audi",
+"tipus": "A4",
+"evjarat": "2007",
+"rendszam": "ABC123",
+"vetel_km": 170000,
+"aktualis_km": 182500,
+"utolso_olaj_km": 175000,
+"szervizek_TKD": [...],
+"tankolasok_TKD": [...],
+"gumi_teli_hasznalat_km": 3200,
+"gumi_nyari_hasznalat_km": 6200
+}
 
+
+---
+
+# ▶️ Futtatás
+
+## Windows / PyCharm
+python main.py
+
+
+vagy
+
+**Run → main.py**
+
+---
+
+# 👨‍💻 Felhasználói útmutató
+
+1. Add meg az autó adatait.
+2. A fő képernyőn követheted:
+   - km,
+   - költségek,
+   - intervallumok.
+3. Tankolás után add meg a mért adatokat (liter, km, összeg).
+4. Szerviznél jelöld a típust és költséget.
+5. Gumikat szezononként add meg.
+6. Ments JSON-ba.
+7. Bármikor visszatölthető.
+
+---
+
+# 🏁 Összegzés
+
+A RoadCare TKD:
+
+✔ Valós, hétköznapi problémára készült
+✔ Súgó, illetve hiba figyeléssel
+✔ Grafikus felületet használ (Tkinter)   
+✔ Hibakezelés magyarul  
+✔ JSON adatmentés és visszatöltés  
+✔ Logikailag tagolt, több osztállyal
+
+---
