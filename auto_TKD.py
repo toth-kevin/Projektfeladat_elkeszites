@@ -24,7 +24,7 @@ class Auto_TKD:
 
     def update_km_TKD(self, uj_km):
         uj_km = int(uj_km)
-        if uj_km >= self.aktualis_km:
+        if uj_km > self.aktualis_km:
             self.aktualis_km = uj_km
 
     def add_service_TKD(self, tipus, km, koltseg):
@@ -92,8 +92,7 @@ class Auto_TKD:
             return None
         if last is None:
             return None
-        esedekes = last + interval
-        return esedekes - self.aktualis_km
+        return (last + interval) - self.aktualis_km
 
     def szerviz_koltseg_TKD(self):
         return sum(s["koltseg"] for s in self.szervizek_TKD)
@@ -103,4 +102,3 @@ class Auto_TKD:
 
     def koltseg_tipus_szerint_TKD(self, tipus):
         return sum(s["koltseg"] for s in self.szervizek_TKD if s["tipus"] == tipus)
-
