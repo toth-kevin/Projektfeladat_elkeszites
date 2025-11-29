@@ -92,7 +92,8 @@ class Auto_TKD:
             return None
         if last is None:
             return None
-        return (last + interval) - self.aktualis_km
+        esedekes = last + interval
+        return esedekes - self.aktualis_km
 
     def szerviz_koltseg_TKD(self):
         return sum(s["koltseg"] for s in self.szervizek_TKD)
